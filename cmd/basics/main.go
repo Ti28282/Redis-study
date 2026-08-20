@@ -1,14 +1,18 @@
 package main
 
 import (
-	"Ti28282/Redis-Study/internal/redis"
+	"Ti28282/Redis-Study/internal/redisClient"
 	"fmt"
+
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
-	rdb := redis.NewClient()
-	ctx := redis.GetContext()
+
+	rdb := redisClient.NewClient()
+	ctx := redisClient.GetContext()
 
 	// STRINGS
 	fmt.Println("=== STRING ===")
@@ -46,4 +50,37 @@ func main() {
 	task, _ := rdb.LPop(ctx, "tasks").Result()
 	fmt.Printf("Popped task: %s\n", task)
 
+	// > === SET === <
+	fmt.Println("> === SET === <")
+	rdb.SAdd(ctx, "tags:post:1", "go", "redis", "backend")
+	rdb.SAdd(ctx, "tags:post:2", "python", "redis", "api")
+
+	common, _ := rdb.SInter(ctx, "tags:post:1", "tags:post:2").Result()
+	fmt.Printf("Common tags: %v\n", common)
+
+	isMember, _ := rdb.SIsMember(ctx, "tags:post:1", "go").Result()
+	fmt.Printf("Has 'go' tag: %v\n", isMember)
+
+	// > === SORTED SET === <
+	fmt.Println("> === SORTED SET === <")
+
+	rdb.ZAdd(ctx, "leaderboard", redis.Z{Score: 1500, Member: "player1"})
+	rdb.ZAdd(ctx, "leaderboard", redis.Z{Score: 2300, Member: "player2"})
+	rdb.ZAdd(ctx, "leaderboard", redis.Z{Score: 1800, Member: "player3"})
+
+	top3, _ := rdb.ZRevRange(ctx, "leaderboard", 0, 2).Result()
+	fmt.Printf("Top 3: %v\n", top3)
+
+	rank, _ := rdb.ZRank(ctx, "leaderboard", "player1").Result()
+	fmt.Printf("Player1 rank: %d\n", rank+1)
+
+	// === TTL and delete ===
+	fmt.Println("\n > === TTL & DELETE === <")
+	ttl, _ := rdb.TTL(ctx, "temp").Result()
+	fmt.Printf("Temp key TTL: %v\n", ttl)
+
+	rdb.Del(ctx, "name")
+
+	exists, _ := rdb.Exists(ctx, "name").Result()
+	fmt.Printf("Name exists: %v\n", exists > 0)
 }
